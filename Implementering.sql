@@ -1,3 +1,6 @@
+DROP VIEW IF EXISTS Users_view;
+DROP VIEW IF EXISTS Borrowed_books;
+DROP PROCEDURE IF EXISTS returnBook;
 DROP PROCEDURE IF EXISTS BorrowBook;
 
 DROP TABLE IF EXISTS BorrowedJournalsRow;
@@ -297,15 +300,99 @@ BEGIN
 END;
 GO
 
+GO
+CREATE PROCEDURE returnBook
+    @user_id INT,
+    @book_id INT
+AS
+BEGIN
+DECLARE @order_id INT;
+
+    -- Check if the book is currently borrowed by the specified user
+    IF NOT EXISTS (
+        SELECT 1
+        FROM BorrowedBooksCol bbc
+        INNER JOIN BorrowedBooksRow bbr ON bbc.order_id = bbr.order_id
+        WHERE bbc.user_id = @user_id
+          AND bbr.book_id = @book_id
+          AND bbc.return_date IS NULL
+    )
+    BEGIN
+        -- Book is not currently borrowed by the specified user
+        RAISERROR('Oh no! Something bad just happened!', 16, 1);
+        RETURN;
+    END;
+
+    -- Get the order_id of the borrowed book
+    SELECT @order_id = bbc.order_id
+    FROM BorrowedBooksCol bbc
+    INNER JOIN BorrowedBooksRow bbr ON bbc.order_id = bbr.order_id
+    WHERE bbc.user_id = @user_id
+      AND bbr.book_id = @book_id
+      AND bbc.return_date IS NULL;
+
+    -- Update BorrowedBooksCol to mark the book as returned
+    UPDATE BorrowedBooksCol
+    SET return_date = GETDATE()
+    WHERE order_id = @order_id;
+
+    -- Optionally, perform additional actions or logging as needed
+
+    -- Print a success message
+    PRINT 'Book returned successfully.';
+END;
+GO
 -- Example of borrowing a book
 EXEC BorrowBook
     @user_id = 1,
     @book_id = 5;
 
-/*EXEC BorrowBook
+EXEC BorrowBook
     @user_id = 2,
-    @book_id = 5;*/
+    @book_id = 2;
+
+EXEC returnBook
+    @user_id = 2,
+    @book_id = 2;
 
 SELECT * FROM BorrowedBooksCol;
 SELECT * FROM BorrowedBooksRow;
 
+GO
+CREATE VIEW 
+Users_view AS
+SELECT USER_ID, first_name,Last_name 
+FROM Users
+WHERE user_id = 2;
+GO
+
+SELECT * FROM Users_view;
+
+--VIEWS--
+GO
+CREATE VIEW Borrowed_books AS 
+SELECT
+    CONCAT(u.first_name, ' ', u.last_name) AS borrower_name,
+	    b.title,
+		b.author
+FROM
+    BorrowedBooksCol AS bbc
+INNER JOIN
+    BorrowedBooksRow AS bbr ON bbc.order_id = bbr.order_id 
+INNER JOIN
+    Users AS u ON u.user_id = bbc.user_id
+INNER JOIN
+    Books AS b ON b.book_id = bbr.book_id
+WHERE 
+	bbc.return_date IS NULL;
+	GO
+		SELECT COUNT(*) AS borrowed_books_count FROM Borrowed_books;
+	GO
+GO
+SELECT * FROM Borrowed_books;
+
+--FRÅGOR--
+SELECT COUNT (Slide_id) AS slide_count, topic_name
+FROM Slides
+GROUP BY topic_name
+ORDER BY COUNT(slide_id) DESC;
