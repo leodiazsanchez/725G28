@@ -1,7 +1,17 @@
 DROP VIEW IF EXISTS Users_view;
+DROP VIEW IF EXISTS Shelves_with_books;
 DROP VIEW IF EXISTS Borrowed_books;
-DROP PROCEDURE IF EXISTS returnBook;
+DROP VIEW IF EXISTS User_Borrowing_Summary;
+DROP VIEW IF EXISTS Artifact_Report;
+DROP VIEW IF EXISTS Borrowed_slides;
+
+DROP PROCEDURE IF EXISTS BorrowSlide;
+DROP PROCEDURE IF EXISTS ReturnSlide;
+DROP PROCEDURE IF EXISTS BorrowArtifact;
+DROP PROCEDURE IF EXISTS ReturnArtifact;
+DROP PROCEDURE IF EXISTS ReturnBook;
 DROP PROCEDURE IF EXISTS BorrowBook;
+
 
 DROP TABLE IF EXISTS BorrowedJournalsRow;
 DROP TABLE IF EXISTS BorrowedJournalsCol;
@@ -22,13 +32,14 @@ DROP TABLE IF EXISTS Users;
 
 CREATE TABLE Users(
 	user_id INT IDENTITY PRIMARY KEY,
-	first_name VARCHAR(20),
-	last_name VARCHAR(30),
-	date_of_birth DATE,
-	email VARCHAR(50) UNIQUE,
-	phone_number VARCHAR(15) UNIQUE,
-	[address] VARCHAR(100),
-	registration_date DATE
+	first_name VARCHAR(20) NOT NULL,
+	last_name VARCHAR(30) NOT NULL,
+	date_of_birth DATE NOT NULL,
+	email VARCHAR(50) UNIQUE NOT NULL,
+	phone_number VARCHAR(10) UNIQUE NOT NULL CHECK (LEN(phone_number) = 10 AND ISNUMERIC(phone_number) = 1),
+	[address] VARCHAR(100) NOT NULL,
+	registration_date DATE NOT NULL,
+	user_type VARCHAR(20) NOT NULL CHECK (UPPER(user_type) IN ('EMPLOYEE', 'STUDENT')) /*Typ av användare*/
 );
 ------ Vi skapar TABLE Users
 CREATE TABLE Shelves(
@@ -48,7 +59,7 @@ CREATE TABLE Books(
 
 CREATE TABLE BorrowedBooksCol(
 	order_id INT IDENTITY PRIMARY KEY,
-	user_id INT,
+	user_id INT NOT NULL,
 	FOREIGN KEY(user_id) REFERENCES Users(user_id),
 	borrow_date DATE NOT NULL,
 	return_date DATE,
@@ -83,8 +94,8 @@ CREATE TABLE Artifacts(
 );
 
 CREATE TABLE BorrowedArtifactsCol (
-    order_id INT PRIMARY KEY,
-    user_id INT,
+    order_id INT IDENTITY PRIMARY KEY,
+    user_id INT NOT NULL,
     FOREIGN KEY(user_id) REFERENCES Users(user_id),
     borrow_date DATE NOT NULL,
     return_date DATE
@@ -113,7 +124,7 @@ CREATE TABLE Slides (
 );
 
 CREATE TABLE BorrowedSlidesCol (
-    order_id INT PRIMARY KEY,
+    order_id INT IDENTITY PRIMARY KEY,
     user_id INT,
     FOREIGN KEY(user_id) REFERENCES Users(user_id),
     borrow_date DATE NOT NULL,
@@ -152,20 +163,19 @@ CREATE TABLE BorrowedJournalsRow (
 
 ---- to add values to our users table we insert it here underneath
 
-INSERT INTO Users (first_name, last_name, date_of_birth, email, phone_number, address, registration_date)
+INSERT INTO Users (first_name, last_name, date_of_birth, email, phone_number, [address], registration_date, user_type)
 VALUES
-  ('Erik', 'Larsson', '1985-03-12', 'erik.larsson@email.com', '0701234567', 'Gatan 1, Stockholm', '2023-01-01'),
-  ('Anna', 'Andersson', '1990-05-18', 'anna.andersson@email.com', '0709876543', 'Vägen 2, Göteborg', '2023-02-01'),
-  ('Oscar', 'Svensson', '1988-09-22', 'oscar.svensson@email.com', '0705551234', 'Backen 3, Malmö', '2023-03-01'),
-  ('Emelie', 'Johansson', '1993-11-08', 'emelie.johansson@email.com', '0703334444', 'Höjden 4, Uppsala', '2023-04-01'),
-  ('Gustav', 'Nilsson', '1982-07-14', 'gustav.nilsson@email.com', '0702221111', 'Strand 5, Linköping', '2023-05-01'),
-  ('Sofia', 'Berg', '1998-02-20', 'sofia.berg@email.com', '0706667777', 'Skog 6, Örebro', '2023-06-01'),
-  ('Henrik', 'Persson', '1987-12-05', 'henrik.persson@email.com', '0709998888', 'Berg 7, Västerås', '2023-07-01'),
-  ('Amanda', 'Holm', '1995-04-30', 'amanda.holm@email.com', '0701112222', 'Äng 8, Jönköping', '2023-08-01'),
-  ('Karl', 'Eriksson', '1980-10-17', 'karl.eriksson@email.com', '0704445555', 'Sjö 9, Norrköping', '2023-09-01'),
-  ('Maja', 'Lindqvist', '1991-06-25', 'maja.lindqvist@email.com', '0707776666','Villevägen 4, Linköping','2023-02-03');
-  -- to print we select the whole table
- SELECT * FROM Users
+  ('Anna', 'Larsson', '1985-03-12', 'anna.larsson@email.com', '0701234562', 'Gatan 1, Stockholm', '2023-01-01', 'Employee'),
+  ('Anna', 'Andersson', '1990-05-18', 'anna.andersson@email.com', '0709876543', 'Vägen 2, Göteborg', '2023-02-01', 'Employee'),
+  ('Oscar', 'Svensson', '1988-09-22', 'oscar.svensson@email.com', '0705551234', 'Backen 3, Malmö', '2023-03-01', 'Employee'),
+  ('Emelie', 'Johansson', '1993-11-08', 'emelie.johansson@email.com', '0703334444', 'Höjden 4, Uppsala', '2023-04-01', 'Employee'),
+  ('Gustav', 'Nilsson', '1982-07-14', 'gustav.nilsson@email.com', '0702221111', 'Strand 5, Linköping', '2023-05-01', 'Employee'),
+  ('Sofia', 'Berg', '1998-02-20', 'sofia.berg@email.com', '0706667777', 'Skog 6, Örebro', '2023-06-01', 'Student'),
+  ('Henrik', 'Persson', '1987-12-05', 'henrik.persson@email.com', '0709998888', 'Berg 7, Västerås', '2023-07-01', 'Student'),
+  ('Amanda', 'Holm', '1995-04-30', 'amanda.holm@email.com', '0701112222', 'Äng 8, Jönköping', '2023-08-01', 'Student'),
+  ('Karl', 'Eriksson', '1980-10-17', 'karl.eriksson@email.com', '0704445555', 'Sjö 9, Norrköping', '2023-09-01', 'Student'),
+  ('Maja', 'Lindqvist', '1991-06-25', 'maja.lindqvist@email.com', '0707776666', 'Villevägen 4, Linköping', '2023-02-03', 'Student');
+
   -- Lägger in värden för hyllorna 
 INSERT INTO Shelves (row_count,[location])
   VALUES
@@ -175,7 +185,7 @@ INSERT INTO Shelves (row_count,[location])
   (10, 'Historiska utställningen'),
   (10, 'Teknikavdelningen');
 
-SELECT * FROM Shelves
+--SELECT * FROM Shelves
 	
 INSERT INTO Books (shelf_id, row, title, author)
 VALUES
@@ -187,7 +197,7 @@ VALUES
   (1, 3, 'One Hundred Years of Solitude', 'Gabriel García Márquez'),
   (2, 1, 'The Lord of the Rings', 'J.R.R. Tolkien');
 
-SELECT * FROM Books
+--SELECT * FROM Books
 
 INSERT INTO Digs (user_id, grid, depth, [location])
 VALUES
@@ -198,7 +208,7 @@ VALUES
   (5, 505, 6, 'Petra, Jordan'),
   (6, 606, 9, 'Great Barrier Reef');
 
-SELECT * FROM Digs
+--SELECT * FROM Digs
 
 INSERT INTO Artifacts (dig_id,shelf_id,row,description,date)
 VALUES 
@@ -233,7 +243,7 @@ VALUES
   (3, 3, 4, 'Khmer Empire sculpture', '2025-05-05'),
   (4, 4, 3, 'Angkor Wat stone carvings', '2025-06-10');
 
-SELECT * FROM Artifacts
+--SELECT * FROM Artifacts
 
 -- Corrected Topics table
 INSERT INTO Topics (topic_name)
@@ -259,9 +269,9 @@ VALUES
 	(1, 2, 'Middle East', 1);
 
 
-SELECT * FROM Topics
+--SELECT * FROM Topics
 
-SELECT * FROM Slides
+--SELECT * FROM Slides
 
 GO
 -- Create a stored procedure to handle book borrowing
@@ -301,7 +311,7 @@ END;
 GO
 
 GO
-CREATE PROCEDURE returnBook
+CREATE PROCEDURE ReturnBook
     @user_id INT,
     @book_id INT
 AS
@@ -351,6 +361,211 @@ EXEC BorrowBook
     @user_id = 2,
     @book_id = 2;
 
-EXEC returnBook
+EXEC ReturnBook
     @user_id = 2,
     @book_id = 2;
+
+EXEC BorrowBook
+    @user_id = 1,
+    @book_id = 7;
+
+GO
+CREATE PROCEDURE BorrowArtifact
+    @user_id INT,
+    @artifact_id INT
+AS
+BEGIN
+    DECLARE @order_id INT;
+
+    -- Check if the artifact is available
+    IF EXISTS (
+        SELECT
+            a.artifact_id
+        FROM
+            Artifacts a
+            INNER JOIN BorrowedArtifactsRow bar ON a.artifact_id = bar.artifact_id
+            INNER JOIN BorrowedArtifactsCol bac ON bar.order_id = bac.order_id
+        WHERE
+            bac.return_date IS NULL
+            AND a.artifact_id = @artifact_id
+    )
+    BEGIN
+        -- Artifact is not available
+        RAISERROR('Oh no! The artifact is not available for borrowing.', 16, 1);
+        RETURN;
+    END;
+
+    -- Insert into BorrowedArtifactsCol
+    INSERT INTO BorrowedArtifactsCol (user_id, borrow_date, return_date)
+    VALUES (@user_id, GETDATE(), NULL);
+
+    -- Get the order_id of the inserted BorrowedArtifactsCol record
+    SET @order_id = SCOPE_IDENTITY();
+
+    -- Insert into BorrowedArtifactsRow
+    INSERT INTO BorrowedArtifactsRow (order_id, artifact_id)
+    VALUES (@order_id, @artifact_id);
+END;
+GO
+
+GO
+CREATE PROCEDURE returnArtifact
+    @user_id INT,
+    @artifact_id INT
+AS
+BEGIN
+    DECLARE @order_id INT;
+
+    -- Check if the artifact is currently borrowed by the specified user
+    IF NOT EXISTS (
+        SELECT 1
+        FROM BorrowedArtifactsCol bac
+        INNER JOIN BorrowedArtifactsRow bar ON bac.order_id = bar.order_id
+        WHERE bac.user_id = @user_id
+          AND bar.artifact_id = @artifact_id
+          AND bac.return_date IS NULL
+    )
+    BEGIN
+        -- Artifact is not currently borrowed by the specified user
+        RAISERROR('Oh no! The artifact is not currently borrowed by the specified user.', 16, 1);
+        RETURN;
+    END;
+
+    -- Get the order_id of the borrowed artifact
+    SELECT @order_id = bac.order_id
+    FROM BorrowedArtifactsCol bac
+    INNER JOIN BorrowedArtifactsRow bar ON bac.order_id = bar.order_id
+    WHERE bac.user_id = @user_id
+      AND bar.artifact_id = @artifact_id
+      AND bac.return_date IS NULL;
+
+    -- Update BorrowedArtifactsCol to mark the artifact as returned
+    UPDATE BorrowedArtifactsCol
+    SET return_date = GETDATE()
+    WHERE order_id = @order_id;
+
+    -- Optionally, perform additional actions or logging as needed
+
+    -- Print a success message
+    PRINT 'Artifact returned successfully.';
+END;
+GO
+
+EXEC BorrowArtifact
+    @user_id = 2,
+    @artifact_id = 2;
+
+EXEC ReturnArtifact
+    @user_id = 2,
+    @artifact_id = 2;
+
+EXEC BorrowArtifact
+    @user_id = 4,
+    @artifact_id = 2;
+
+EXEC ReturnArtifact
+	@user_id = 4,
+	@artifact_id = 2;
+
+
+GO
+CREATE PROCEDURE BorrowSlide
+    @user_id INT,
+    @slide_id INT
+AS
+BEGIN
+    DECLARE @order_id INT;
+
+    -- Check if the slide is available
+    IF EXISTS (
+        SELECT
+            s.slide_id
+        FROM
+            Slides s
+            INNER JOIN BorrowedSlidesRow bsr ON s.slide_id = bsr.slide_id
+            INNER JOIN BorrowedSlidesCol bsc ON bsr.order_id = bsc.order_id
+        WHERE
+            bsc.return_date IS NULL
+            AND s.slide_id = @slide_id
+    )
+    BEGIN
+        -- Slide is not available
+        RAISERROR('Oh no! The slide is not available for borrowing.', 16, 1);
+        RETURN;
+    END;
+
+    -- Insert into BorrowedSlidesCol
+    INSERT INTO BorrowedSlidesCol (user_id, borrow_date, return_date)
+    VALUES (@user_id, GETDATE(), NULL);
+
+    -- Get the order_id of the inserted BorrowedSlidesCol record
+    SET @order_id = SCOPE_IDENTITY();
+
+    -- Insert into BorrowedSlidesRow
+    INSERT INTO BorrowedSlidesRow (order_id, slide_id)
+    VALUES (@order_id, @slide_id);
+END;
+GO
+
+GO
+CREATE PROCEDURE ReturnSlide
+    @user_id INT,
+    @slide_id INT
+AS
+BEGIN
+    DECLARE @order_id INT;
+
+    -- Check if the slide is currently borrowed by the specified user
+    IF NOT EXISTS (
+        SELECT 1
+        FROM BorrowedSlidesCol bsc
+        INNER JOIN BorrowedSlidesRow bsr ON bsc.order_id = bsr.order_id
+        WHERE bsc.user_id = @user_id
+          AND bsr.slide_id = @slide_id
+          AND bsc.return_date IS NULL
+    )
+    BEGIN
+        -- Slide is not currently borrowed by the specified user
+        RAISERROR('Oh no! The slide is not currently borrowed by the specified user.', 16, 1);
+        RETURN;
+    END;
+
+    -- Get the order_id of the borrowed slide
+    SELECT @order_id = bsc.order_id
+    FROM BorrowedSlidesCol bsc
+    INNER JOIN BorrowedSlidesRow bsr ON bsc.order_id = bsr.order_id
+    WHERE bsc.user_id = @user_id
+      AND bsr.slide_id = @slide_id
+      AND bsc.return_date IS NULL;
+
+    -- Update BorrowedSlidesCol to mark the slide as returned
+    UPDATE BorrowedSlidesCol
+    SET return_date = GETDATE()
+    WHERE order_id = @order_id;
+
+    -- Optionally, perform additional actions or logging as needed
+
+    -- Print a success message
+    PRINT 'Slide returned successfully.';
+END;
+GO
+
+EXEC BorrowSlide
+	@user_id = 6,
+	@slide_id = 4;
+
+EXEC ReturnSlide
+	@user_id = 6,
+	@slide_id = 4;
+
+EXEC BorrowSlide
+	@user_id = 4,
+	@slide_id = 4;
+
+EXEC BorrowSlide
+	@user_id = 1,
+	@slide_id = 5;
+
+EXEC BorrowSlide
+	@user_id = 9,
+	@slide_id = 3;
