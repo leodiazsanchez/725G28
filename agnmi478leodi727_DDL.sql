@@ -29,10 +29,12 @@ DROP TABLE IF EXISTS BorrowedBooksRow;
 DROP TABLE IF EXISTS BorrowedBooksCol;
 DROP TABLE IF EXISTS Books;
 DROP TABLE IF EXISTS Shelves;
+DROP TABLE IF EXISTS Former_users;
 DROP TABLE IF EXISTS Users;
 
+
 CREATE TABLE Users(
-	user_id INT IDENTITY PRIMARY KEY,
+	user_id INT IDENTITY PRIMARY KEY ,
 	first_name VARCHAR(20) NOT NULL,
 	last_name VARCHAR(30) NOT NULL,
 	date_of_birth DATE NOT NULL,
@@ -40,6 +42,19 @@ CREATE TABLE Users(
 	phone_number VARCHAR(10) UNIQUE NOT NULL CHECK (LEN(phone_number) = 10 AND ISNUMERIC(phone_number) = 1),
 	[address] VARCHAR(100) NOT NULL,
 	registration_date DATE NOT NULL,
+	user_type VARCHAR(20) NOT NULL CHECK (UPPER(user_type) IN ('EMPLOYEE', 'STUDENT')) /*Typ av användare*/
+);
+
+CREATE TABLE Former_users (
+user_id INT PRIMARY KEY,
+	first_name VARCHAR(20) NOT NULL,
+	last_name VARCHAR(30) NOT NULL,
+	date_of_birth DATE NOT NULL,
+	email VARCHAR(50) UNIQUE NOT NULL,
+	phone_number VARCHAR(10) UNIQUE NOT NULL CHECK (LEN(phone_number) = 10 AND ISNUMERIC(phone_number) = 1),
+	[address] VARCHAR(100) NOT NULL,
+	registration_date DATE NOT NULL,
+	resigned_date DATE NOT NULL,
 	user_type VARCHAR(20) NOT NULL CHECK (UPPER(user_type) IN ('EMPLOYEE', 'STUDENT')) /*Typ av användare*/
 );
 ------ Vi skapar TABLE Users
@@ -60,8 +75,8 @@ CREATE TABLE Books(
 
 CREATE TABLE BorrowedBooksCol(
 	order_id INT IDENTITY PRIMARY KEY NOT NULL,
-	user_id INT NOT NULL,
-	FOREIGN KEY(user_id) REFERENCES Users(user_id),
+	user_id INT NOT NULL ,
+	FOREIGN KEY(user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
 	borrow_date DATE NOT NULL,
 	return_date DATE,
 	CHECK (return_date>= borrow_date)
@@ -69,15 +84,15 @@ CREATE TABLE BorrowedBooksCol(
 
 CREATE TABLE BorrowedBooksRow(
 	order_id INT,
-	FOREIGN KEY(order_id) REFERENCES BorrowedBooksCol(order_id),
+	FOREIGN KEY(order_id) REFERENCES BorrowedBooksCol(order_id) ON DELETE CASCADE,
 	book_id INT,
-	FOREIGN KEY(book_id) REFERENCES Books(book_id)
+	FOREIGN KEY(book_id) REFERENCES Books(book_id) ON DELETE CASCADE
 );
 
 CREATE TABLE Digs(
 	dig_id INT IDENTITY PRIMARY KEY,
-	user_id INT NOT NULL,
-	FOREIGN KEY(user_id) REFERENCES Users(user_id),
+	user_id INT NOT NULL ,
+	FOREIGN KEY(user_id) REFERENCES Users(user_id) ON DELETE CASCADE ,
 	grid INT NOT NULL,
 	depth INT NOT NULL,
 	[location] VARCHAR(255) NOT NULL
@@ -104,9 +119,9 @@ CREATE TABLE BorrowedArtifactsCol (
 
 CREATE TABLE BorrowedArtifactsRow (
     order_id INT,
-    FOREIGN KEY(order_id) REFERENCES BorrowedArtifactsCol(order_id) ON DELETE CASCADE,
+    FOREIGN KEY(order_id) REFERENCES BorrowedArtifactsCol(order_id) ,
     artifact_id INT,
-    FOREIGN KEY(artifact_id) REFERENCES Artifacts(artifact_id) ON DELETE CASCADE
+    FOREIGN KEY(artifact_id) REFERENCES Artifacts(artifact_id) 
 );
 
 CREATE TABLE Topics (
@@ -118,7 +133,7 @@ CREATE TABLE Slides (
 	shelf_id INT,
 	FOREIGN KEY (shelf_id) REFERENCES Shelves(shelf_id),
 	dig_id INT,
-	FOREIGN KEY(dig_id) REFERENCES Digs(dig_id),
+	FOREIGN KEY(dig_id) REFERENCES Digs(dig_id) ,
 	topic_name VARCHAR(255),
 	FOREIGN KEY (topic_name) REFERENCES Topics (topic_name),
 	[row] INT
@@ -127,16 +142,16 @@ CREATE TABLE Slides (
 CREATE TABLE BorrowedSlidesCol (
     order_id INT IDENTITY PRIMARY KEY,
     user_id INT,
-    FOREIGN KEY(user_id) REFERENCES Users(user_id),
+    FOREIGN KEY(user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
     borrow_date DATE NOT NULL,
     return_date DATE
 );
 
 CREATE TABLE BorrowedSlidesRow (
     order_id INT,
-    FOREIGN KEY(order_id) REFERENCES BorrowedSlidesCol(order_id),
+    FOREIGN KEY(order_id) REFERENCES BorrowedSlidesCol(order_id) ON DELETE CASCADE,
     slide_id INT,
-    FOREIGN KEY(slide_id) REFERENCES Slides(slide_id)
+    FOREIGN KEY(slide_id) REFERENCES Slides(slide_id) ON DELETE CASCADE
 );
 
 CREATE TABLE Journals (
@@ -149,7 +164,7 @@ CREATE TABLE Journals (
 CREATE TABLE BorrowedJournalsCol (
     order_id INT PRIMARY KEY,
     user_id INT,
-    FOREIGN KEY(user_id) REFERENCES Users(user_id),
+    FOREIGN KEY(user_id) REFERENCES Users(user_id) ON DELETE CASCADE,
     borrow_date DATE NOT NULL,
     return_date DATE
 );
@@ -725,7 +740,7 @@ SELECT * FROM BorrowedArtifactsRow;
 
 SELECT * FROM Artifact_Report;
 
-DELETE FROM Artifacts WHERE artifact_id = 2;
+
 
 SELECT * FROM Artifacts;
 --FRÅGOR--
@@ -737,3 +752,18 @@ SELECT * FROM Slide_Catalog ORDER BY topic_name;
 FROM Slides
 GROUP BY topic_name
 ORDER BY COUNT(slide_id) DESC;*/
+go
+CREATE TRIGGER [staff_cleaner]
+ON [users]
+AFTER DELETE
+AS BEGIN
+INSERT INTO [Former_users] (user_id,first_name,last_name,date_of_birth,email,phone_number,address,registration_date,resigned_date,user_type)
+SELECT D.user_id, D.first_name,D.last_name,D.date_of_birth,D.email,D.phone_number,D.address,D.registration_date,GETDATE(),D.user_type
+FROM deleted AS D
+END;
+go
+
+DELETE FROM Users WHERE user_id=1;
+
+SELECT * FROM Users;
+SELECT * FROM Former_users;
