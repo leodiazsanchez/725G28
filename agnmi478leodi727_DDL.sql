@@ -13,7 +13,6 @@ DROP PROCEDURE IF EXISTS ReturnArtifact;
 DROP PROCEDURE IF EXISTS ReturnBook;
 DROP PROCEDURE IF EXISTS BorrowBook;
 
-
 DROP TABLE IF EXISTS BorrowedJournalsRow;
 DROP TABLE IF EXISTS BorrowedJournalsCol;
 DROP TABLE IF EXISTS Journals;
@@ -57,7 +56,7 @@ user_id INT PRIMARY KEY,
 	resigned_date DATE NOT NULL,
 	user_type VARCHAR(20) NOT NULL CHECK (UPPER(user_type) IN ('EMPLOYEE', 'STUDENT')) /*Typ av användare*/
 );
------- Vi skapar TABLE Users
+
 CREATE TABLE Shelves(
 	shelf_id INT IDENTITY PRIMARY KEY,
 	row_count INT NOT NULL,
@@ -119,7 +118,7 @@ CREATE TABLE BorrowedArtifactsCol (
 
 CREATE TABLE BorrowedArtifactsRow (
     order_id INT,
-    FOREIGN KEY(order_id) REFERENCES BorrowedArtifactsCol(order_id) ,
+    FOREIGN KEY(order_id) REFERENCES BorrowedArtifactsCol(order_id) ON DELETE CASCADE,
     artifact_id INT,
     FOREIGN KEY(artifact_id) REFERENCES Artifacts(artifact_id) 
 );
@@ -133,7 +132,7 @@ CREATE TABLE Slides (
 	shelf_id INT,
 	FOREIGN KEY (shelf_id) REFERENCES Shelves(shelf_id),
 	dig_id INT,
-	FOREIGN KEY(dig_id) REFERENCES Digs(dig_id) ,
+	FOREIGN KEY(dig_id) REFERENCES Digs(dig_id) ON DELETE SET NULL,
 	topic_name VARCHAR(255),
 	FOREIGN KEY (topic_name) REFERENCES Topics (topic_name),
 	[row] INT
@@ -160,7 +159,6 @@ CREATE TABLE Journals (
     published DATE
 );
 
--- Table for overall borrowed journals information
 CREATE TABLE BorrowedJournalsCol (
     order_id INT PRIMARY KEY,
     user_id INT,
@@ -169,7 +167,6 @@ CREATE TABLE BorrowedJournalsCol (
     return_date DATE
 );
 
--- Table for individual borrowed journals
 CREATE TABLE BorrowedJournalsRow (
     order_id INT,
     FOREIGN KEY(order_id) REFERENCES BorrowedJournalsCol(order_id),
@@ -177,7 +174,7 @@ CREATE TABLE BorrowedJournalsRow (
     FOREIGN KEY(journal_id) REFERENCES Journals(journal_id)
 );
 
----- to add values to our users table we insert it here underneath
+-- Inserting example values into the tables
 
 INSERT INTO Users (first_name, last_name, date_of_birth, email, phone_number, [address], registration_date, user_type)
 VALUES
@@ -192,7 +189,6 @@ VALUES
   ('Karl', 'Eriksson', '1980-10-17', 'karl.eriksson@email.com', '0704445555', 'Sjö 9, Norrköping', '2023-09-01', 'Student'),
   ('Maja', 'Lindqvist', '1991-06-25', 'maja.lindqvist@email.com', '0707776666', 'Villevägen 4, Linköping', '2023-02-03', 'Student');
 
-  -- Lägger in värden för hyllorna 
 INSERT INTO Shelves (row_count,[location])
   VALUES
   (20, 'Utställningssal A'),
@@ -201,7 +197,6 @@ INSERT INTO Shelves (row_count,[location])
   (10, 'Historiska utställningen'),
   (10, 'Teknikavdelningen');
 
---SELECT * FROM Shelves
 	
 INSERT INTO Books (shelf_id, row, title, author)
 VALUES
@@ -213,7 +208,6 @@ VALUES
   (1, 3, 'One Hundred Years of Solitude', 'Gabriel García Márquez'),
   (2, 1, 'The Lord of the Rings', 'J.R.R. Tolkien');
 
---SELECT * FROM Books
 
 INSERT INTO Digs (user_id, grid, depth, [location])
 VALUES
@@ -224,7 +218,6 @@ VALUES
   (5, 505, 6, 'Petra, Jordan'),
   (6, 606, 9, 'Great Barrier Reef');
 
---SELECT * FROM Digs
 
 INSERT INTO Artifacts (dig_id,shelf_id,row,description,date)
 VALUES 
@@ -259,21 +252,17 @@ VALUES
   (3, 3, 4, 'Khmer Empire sculpture', '2025-05-05'),
   (4, 4, 3, 'Angkor Wat stone carvings', '2025-06-10');
 
---SELECT * FROM Artifacts
-
--- Corrected Topics table
 INSERT INTO Topics (topic_name)
 VALUES
 	('Middle East'),
-	('Ancient Greece'), -- Corrected typo
+	('Ancient Greece'),
 	('Ancient Civilizations'),
-	('Torrevieja'),
+	('Oceania'),
 	('South America'),
-	('Archaeological Technique'), -- Corrected typo
+	('Archaeological Technique'), 
 	('Underwater Archaeology'),
 	('Prehistoric Art');
 
--- Corrected Slides table
 INSERT INTO Slides (shelf_id, dig_id, topic_name, row)
 VALUES
 	(1, 1, 'Middle East', 1),
@@ -284,13 +273,153 @@ VALUES
 	(1, 6, 'Prehistoric Art', 4),
 	(1, 2, 'Middle East', 1);
 
+--VIWES
 
---SELECT * FROM Topics
-
---SELECT * FROM Slides
+--View to see which books are currently on loan and to whom
+GO
+CREATE VIEW Borrowed_slides AS
+SELECT
+	s.slide_id,
+	s.topic_name,
+	s.shelf_id,
+	s.[row],
+    CONCAT(u.first_name, ' ', u.last_name) AS borrower_name,
+    bsc.borrow_date
+FROM
+    BorrowedSlidesCol AS bsc
+INNER JOIN
+    BorrowedSlidesRow AS bsr ON bsc.order_id = bsr.order_id 
+INNER JOIN
+    Users AS u ON u.user_id = bsc.user_id
+INNER JOIN
+    Slides AS s ON s.slide_id = bsr.slide_id
+INNER JOIN
+	Shelves as sh ON s.shelf_id = sh.shelf_id
+WHERE 
+    bsc.return_date IS NULL;
 
 GO
--- Create a stored procedure to handle book borrowing
+
+--View to see which books are currently on loan and to whom
+GO
+CREATE VIEW Borrowed_books AS 
+SELECT
+    CONCAT(u.first_name, ' ', u.last_name) AS borrower_name,
+	    b.title,
+		b.author,
+		bbc.borrow_date
+FROM
+    BorrowedBooksCol AS bbc
+INNER JOIN
+    BorrowedBooksRow AS bbr ON bbc.order_id = bbr.order_id 
+INNER JOIN
+    Users AS u ON u.user_id = bbc.user_id
+INNER JOIN
+    Books AS b ON b.book_id = bbr.book_id
+WHERE 
+	bbc.return_date IS NULL;
+	/*GO
+		SELECT COUNT(*) AS borrowed_books_count FROM Borrowed_books;
+	GO*/
+GO
+
+--- View to see a shelf's contents
+GO
+CREATE VIEW Shelves_with_books AS
+SELECT
+    s.shelf_id AS shelf,
+    s.location,
+    b.title AS book_title,
+    b.author AS book_author
+FROM
+    Shelves AS s
+LEFT JOIN
+    Books AS b ON s.shelf_id = b.shelf_id;
+GO
+
+GO
+CREATE VIEW User_Borrowing_Summary AS
+SELECT
+    u.user_id,
+    CONCAT(u.first_name, ' ', u.last_name) AS full_name,
+    COUNT(DISTINCT bbc.order_id) AS total_borrowed_items,
+    COUNT(DISTINCT CASE WHEN bbc.return_date IS NULL THEN bbc.order_id END) AS currently_borrowed_items,
+    MAX(COALESCE(bbc.return_date, '1900-01-01')) AS last_return_date
+FROM
+    Users AS u
+LEFT JOIN
+    BorrowedBooksCol AS bbc ON u.user_id = bbc.user_id
+LEFT JOIN
+    BorrowedBooksRow AS bbr ON bbc.order_id = bbr.order_id
+LEFT JOIN
+    BorrowedArtifactsCol AS bac ON u.user_id = bac.user_id
+LEFT JOIN
+    BorrowedArtifactsRow AS bar ON bac.order_id = bar.order_id
+WHERE
+    bbc.return_date IS NOT NULL OR bac.return_date IS NOT NULL
+GROUP BY
+    u.user_id, u.first_name, u.last_name;
+
+GO
+CREATE VIEW Slide_Catalog AS
+SELECT
+	s.slide_id,
+	s.topic_name,
+	d.location AS dig_location,
+	s.shelf_id,
+	s.row,
+	sh.location AS shelf_location
+FROM
+	Slides AS s
+INNER JOIN 
+	Digs AS d ON s.dig_id = d.dig_id
+INNER JOIN
+	Shelves AS sh ON sh.shelf_id = s.shelf_id;
+GO
+
+GO
+CREATE VIEW Artifact_Report AS 
+SELECT 
+    a.artifact_id,
+    a.description,
+    a.date AS found_date,
+    d.location AS dig_location,
+    a.shelf_id,
+    a.row,
+    s.location as shelf_location,
+    CASE 
+        WHEN bac.borrow_date IS NULL AND bac.return_date IS NULL THEN 'NO'
+        WHEN bac.borrow_date IS NOT NULL AND bac.return_date IS NOT NULL THEN 'NO'
+        ELSE 'YES' 
+    END AS on_loan,
+    CASE
+		WHEN bac.borrow_date IS NULL AND bac.return_date IS NULL THEN 'N/A'
+        WHEN bac.borrow_date IS NOT NULL AND bac.return_date IS NOT NULL THEN 'N/A'
+        ELSE u.first_name + ' ' + u.last_name 
+    END AS [loaned_to]
+FROM 
+    Artifacts AS a
+INNER JOIN
+    Shelves AS s ON a.shelf_id = s.shelf_id
+INNER JOIN
+    Digs AS d ON a.dig_id = d.dig_id
+LEFT JOIN BorrowedArtifactsRow bar 
+    ON a.artifact_id = bar.artifact_id 
+    AND bar.order_id = (
+        SELECT MAX(order_id) 
+        FROM BorrowedArtifactsRow 
+        WHERE artifact_id = a.artifact_id
+    )
+LEFT JOIN 
+    BorrowedArtifactsCol AS bac ON bac.order_id = bar.order_id
+LEFT JOIN
+    Users AS u ON u.user_id = bac.user_id
+GO
+
+--PROCEDURES AND TRIGGERS
+
+-- Stored procedure to handle book borrowing
+GO
 CREATE PROCEDURE BorrowBook
     @user_id INT,
     @book_id INT
@@ -326,6 +455,7 @@ BEGIN
 END;
 GO
 
+-- Stored procedure to handle returning of book 
 GO
 CREATE PROCEDURE ReturnBook
     @user_id INT,
@@ -368,22 +498,7 @@ DECLARE @order_id INT;
     PRINT 'Book returned successfully.';
 END;
 GO
--- Example of borrowing a book
-EXEC BorrowBook
-    @user_id = 1,
-    @book_id = 5;
 
-EXEC BorrowBook
-    @user_id = 2,
-    @book_id = 2;
-
-EXEC ReturnBook
-    @user_id = 2,
-    @book_id = 2;
-
-EXEC BorrowBook
-    @user_id = 1,
-    @book_id = 7;
 
 GO
 CREATE PROCEDURE BorrowArtifact
@@ -467,23 +582,6 @@ BEGIN
 END;
 GO
 
-EXEC BorrowArtifact
-    @user_id = 2,
-    @artifact_id = 2;
-
-EXEC ReturnArtifact
-    @user_id = 2,
-    @artifact_id = 2;
-
-EXEC BorrowArtifact
-    @user_id = 4,
-    @artifact_id = 2;
-
-EXEC ReturnArtifact
-	@user_id = 4,
-	@artifact_id = 2;
-
-
 GO
 CREATE PROCEDURE BorrowSlide
     @user_id INT,
@@ -566,193 +664,7 @@ BEGIN
 END;
 GO
 
-EXEC BorrowSlide
-	@user_id = 6,
-	@slide_id = 4;
-
-EXEC ReturnSlide
-	@user_id = 6,
-	@slide_id = 4;
-
-EXEC BorrowSlide
-	@user_id = 4,
-	@slide_id = 4;
-
-EXEC BorrowSlide
-	@user_id = 1,
-	@slide_id = 5;
-
-EXEC BorrowSlide
-	@user_id = 9,
-	@slide_id = 3;
---VYER--
-
 GO
-CREATE VIEW Borrowed_slides AS 
-SELECT
-	s.slide_id,
-	s.topic_name,
-	s.shelf_id,
-	s.[row],
-    CONCAT(u.first_name, ' ', u.last_name) AS borrower_name,
-    bsc.borrow_date
-FROM
-    BorrowedSlidesCol AS bsc
-INNER JOIN
-    BorrowedSlidesRow AS bsr ON bsc.order_id = bsr.order_id 
-INNER JOIN
-    Users AS u ON u.user_id = bsc.user_id
-INNER JOIN
-    Slides AS s ON s.slide_id = bsr.slide_id
-INNER JOIN
-	Shelves as sh ON s.shelf_id = sh.shelf_id
-WHERE 
-    bsc.return_date IS NULL;
-
-GO
-
-SELECT * FROM Borrowed_slides ORDER BY topic_name;
-
---Vy för att se vilka böcker som är utlånade just nu och till vem
-GO
-CREATE VIEW Borrowed_books AS 
-SELECT
-    CONCAT(u.first_name, ' ', u.last_name) AS borrower_name,
-	    b.title,
-		b.author,
-		bbc.borrow_date
-FROM
-    BorrowedBooksCol AS bbc
-INNER JOIN
-    BorrowedBooksRow AS bbr ON bbc.order_id = bbr.order_id 
-INNER JOIN
-    Users AS u ON u.user_id = bbc.user_id
-INNER JOIN
-    Books AS b ON b.book_id = bbr.book_id
-WHERE 
-	bbc.return_date IS NULL;
-	/*GO
-		SELECT COUNT(*) AS borrowed_books_count FROM Borrowed_books;
-	GO*/
-GO
---SELECT * FROM Borrowed_books;
-
---- Vy för att se en hyllas innehåll
-GO
-CREATE VIEW Shelves_with_books AS
-SELECT
-    s.shelf_id AS shelf,
-    s.location,
-    b.title AS book_title,
-    b.author AS book_author
-FROM
-    Shelves AS s
-LEFT JOIN
-    Books AS b ON s.shelf_id = b.shelf_id;
-GO
-
---SELECT * FROM Shelves_with_books;
-
-GO
-CREATE VIEW User_Borrowing_Summary AS
-SELECT
-    u.user_id,
-    CONCAT(u.first_name, ' ', u.last_name) AS full_name,
-    COUNT(DISTINCT bbc.order_id) AS total_borrowed_items,
-    COUNT(DISTINCT CASE WHEN bbc.return_date IS NULL THEN bbc.order_id END) AS currently_borrowed_items,
-    MAX(COALESCE(bbc.return_date, '1900-01-01')) AS last_return_date
-FROM
-    Users AS u
-LEFT JOIN
-    BorrowedBooksCol AS bbc ON u.user_id = bbc.user_id
-LEFT JOIN
-    BorrowedBooksRow AS bbr ON bbc.order_id = bbr.order_id
-LEFT JOIN
-    BorrowedArtifactsCol AS bac ON u.user_id = bac.user_id
-LEFT JOIN
-    BorrowedArtifactsRow AS bar ON bac.order_id = bar.order_id
-WHERE
-    bbc.return_date IS NOT NULL OR bac.return_date IS NOT NULL
-GROUP BY
-    u.user_id, u.first_name, u.last_name;
-
---SELECT * FROM User_Borrowing_Summary
-
-GO
-CREATE VIEW Slide_Catalog AS
-SELECT
-	s.slide_id,
-	s.topic_name,
-	d.location AS dig_location,
-	s.shelf_id,
-	s.row,
-	sh.location AS shelf_location
-FROM
-	Slides AS s
-INNER JOIN 
-	Digs AS d ON s.dig_id = d.dig_id
-INNER JOIN
-	Shelves AS sh ON sh.shelf_id = s.shelf_id;
-GO
-
-
-GO
-CREATE VIEW Artifact_Report AS 
-SELECT 
-    a.artifact_id,
-    a.description,
-    a.date AS found_date,
-    d.location AS dig_location,
-    a.shelf_id,
-    a.row,
-    s.location as shelf_location,
-    CASE 
-        WHEN bac.borrow_date IS NULL AND bac.return_date IS NULL THEN 'NO'
-        WHEN bac.borrow_date IS NOT NULL AND bac.return_date IS NOT NULL THEN 'NO'
-        ELSE 'YES' 
-    END AS on_loan,
-    CASE
-		WHEN bac.borrow_date IS NULL AND bac.return_date IS NULL THEN 'N/A'
-        WHEN bac.borrow_date IS NOT NULL AND bac.return_date IS NOT NULL THEN 'N/A'
-        ELSE u.first_name + ' ' + u.last_name 
-    END AS [loaned_to]
-FROM 
-    Artifacts AS a
-INNER JOIN
-    Shelves AS s ON a.shelf_id = s.shelf_id
-INNER JOIN
-    Digs AS d ON a.dig_id = d.dig_id
-LEFT JOIN BorrowedArtifactsRow bar 
-    ON a.artifact_id = bar.artifact_id 
-    AND bar.order_id = (
-        SELECT MAX(order_id) 
-        FROM BorrowedArtifactsRow 
-        WHERE artifact_id = a.artifact_id
-    )
-LEFT JOIN 
-    BorrowedArtifactsCol AS bac ON bac.order_id = bar.order_id
-LEFT JOIN
-    Users AS u ON u.user_id = bac.user_id
-GO
-
-SELECT * FROM BorrowedArtifactsCol;
-SELECT * FROM BorrowedArtifactsRow;
-
-SELECT * FROM Artifact_Report;
-
-
-
-SELECT * FROM Artifacts;
---FRÅGOR--
-SELECT * FROM Users WHERE user_type = 'Employee' ORDER BY first_name,last_name;
-
-SELECT * FROM Slide_Catalog ORDER BY topic_name;
-
-/*SELECT COUNT (Slide_id) AS slide_count, topic_name
-FROM Slides
-GROUP BY topic_name
-ORDER BY COUNT(slide_id) DESC;*/
-go
 CREATE TRIGGER [staff_cleaner]
 ON [users]
 AFTER DELETE
@@ -761,9 +673,4 @@ INSERT INTO [Former_users] (user_id,first_name,last_name,date_of_birth,email,pho
 SELECT D.user_id, D.first_name,D.last_name,D.date_of_birth,D.email,D.phone_number,D.address,D.registration_date,GETDATE(),D.user_type
 FROM deleted AS D
 END;
-go
-
-DELETE FROM Users WHERE user_id=1;
-
-SELECT * FROM Users;
-SELECT * FROM Former_users;
+GO
