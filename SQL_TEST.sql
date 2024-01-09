@@ -1,7 +1,6 @@
 DROP VIEW IF EXISTS Users_view;
 DROP VIEW IF EXISTS Shelves_with_books;
 DROP VIEW IF EXISTS Borrowed_books;
-DROP VIEW IF EXISTS User_Borrowing_Summary;
 DROP VIEW IF EXISTS Artifact_Report;
 DROP VIEW IF EXISTS Borrowed_slides;
 DROP VIEW IF EXISTS Slide_Catalog;
@@ -135,7 +134,7 @@ CREATE TABLE Slides (
 	FOREIGN KEY(dig_id) REFERENCES Digs(dig_id) ON DELETE SET NULL,
 	topic_name VARCHAR(255),
 	FOREIGN KEY (topic_name) REFERENCES Topics (topic_name),
-	[row] INT
+	[row] INT NOT NULL
 );
 
 CREATE TABLE BorrowedSlidesCol (
@@ -155,9 +154,9 @@ CREATE TABLE BorrowedSlidesRow (
 
 CREATE TABLE Journals (
     journal_id INT IDENTITY PRIMARY KEY,
-    title VARCHAR(255),
-    published DATE,
-	author VARCHAR(255)
+    title VARCHAR(255) NOT NULL,
+    published DATE NOT NULL,
+	author VARCHAR(255) NOT NULL
 );
 
 CREATE TABLE BorrowedJournalsCol (
@@ -299,7 +298,6 @@ VALUES
   ('Ancient Trade and Economy', '2007-11-26','Michael Michelsson'),
   ('Ancient Religion and Spirituality', '2008-12-01','Yvette Snow');
 
-
 --VIWES
 
 --View to see which books are currently on loan and to whom
@@ -345,9 +343,6 @@ INNER JOIN
     Books AS b ON b.book_id = bbr.book_id
 WHERE 
 	bbc.return_date IS NULL;
-	/*GO
-		SELECT COUNT(*) AS borrowed_books_count FROM Borrowed_books;
-	GO*/
 GO
 
 --- View to see a shelf's contents
@@ -363,29 +358,6 @@ FROM
 LEFT JOIN
     Books AS b ON s.shelf_id = b.shelf_id;
 GO
-
-GO
-CREATE VIEW User_Borrowing_Summary AS
-SELECT
-    u.user_id,
-    CONCAT(u.first_name, ' ', u.last_name) AS full_name,
-    COUNT(DISTINCT bbc.order_id) AS total_borrowed_items,
-    COUNT(DISTINCT CASE WHEN bbc.return_date IS NULL THEN bbc.order_id END) AS currently_borrowed_items,
-    MAX(COALESCE(bbc.return_date, '1900-01-01')) AS last_return_date
-FROM
-    Users AS u
-LEFT JOIN
-    BorrowedBooksCol AS bbc ON u.user_id = bbc.user_id
-LEFT JOIN
-    BorrowedBooksRow AS bbr ON bbc.order_id = bbr.order_id
-LEFT JOIN
-    BorrowedArtifactsCol AS bac ON u.user_id = bac.user_id
-LEFT JOIN
-    BorrowedArtifactsRow AS bar ON bac.order_id = bar.order_id
-WHERE
-    bbc.return_date IS NOT NULL OR bac.return_date IS NOT NULL
-GROUP BY
-    u.user_id, u.first_name, u.last_name;
 
 GO
 CREATE VIEW Slide_Catalog AS
@@ -691,16 +663,18 @@ BEGIN
 END;
 GO
 
+-- Trigger that activates when an user is deleted. Saves the user in former_user table
 GO
 CREATE TRIGGER [staff_cleaner]
-ON [users]
-AFTER DELETE
-AS BEGIN
-INSERT INTO [Former_users] (user_id,first_name,last_name,date_of_birth,email,phone_number,address,registration_date,resigned_date,user_type)
-SELECT D.user_id, D.first_name,D.last_name,D.date_of_birth,D.email,D.phone_number,D.address,D.registration_date,GETDATE(),D.user_type
-FROM deleted AS D
-END;
+	ON [users]
+	AFTER DELETE
+	AS BEGIN
+	INSERT INTO [Former_users] (user_id,first_name,last_name,date_of_birth,email,phone_number,address,registration_date,resigned_date,user_type)
+	SELECT D.user_id, D.first_name,D.last_name,D.date_of_birth,D.email,D.phone_number,D.address,D.registration_date,GETDATE(),D.user_type
+	FROM deleted AS D
+	END;
 GO
+
 -- Example of borrowing and returnuing books
 
 EXEC BorrowBook
@@ -804,35 +778,34 @@ EXEC BorrowArtifact
     @user_id = 2,
     @artifact_id = 7;
 
+--Simple queries--
+SELECT * FROM Borrowed_books ORDER BY borrower_name;
+
 SELECT * FROM Borrowed_slides ORDER BY topic_name;
---SELECT * FROM Borrowed_books;
---SELECT * FROM User_Borrowing_Summary
-SELECT * FROM BorrowedArtifactsCol;
-SELECT * FROM BorrowedArtifactsRow;
 
-SELECT * FROM Artifact_Report;
+SELECT * FROM Artifact_Report ORDER BY dig_location;
 
+--Queries--
 
-SELECT * FROM Borrowed_books;
-
---FRÅGOR--
-
---Max en simpel fråga (Fråga utan join, aggregatfunktion och villkor)
+--Query using WHERE
 SELECT * FROM Users WHERE user_type = 'Employee' ORDER BY first_name,last_name;
 
-SELECT * FROM Slide_Catalog ORDER BY topic_name;
+-- Query using aggregate functions
+SELECT COUNT(user_id) AS Number_of_users, user_type AS User_Type
+FROM Users
+GROUP BY user_type
+ORDER BY COUNT(user_id) DESC;
 
-/*SELECT COUNT (Slide_id) AS slide_count, topic_name
-FROM Slides
-GROUP BY topic_name
-ORDER BY COUNT(slide_id) DESC;*/
+--Query using WHERE
+SELECT * FROM Slide_Catalog  
+WHERE shelf_location = 'Utställningssal A'
+ORDER BY topic_name;
 
+-- Delete and verifying that trigger works as intended
 DELETE FROM Users WHERE user_id=1;
 
---SELECT * FROM Users;
---SELECT * FROM Former_users;
---SELECT * FROM Books;
-SELECT * FROM Borrowed_books;
+SELECT * FROM Users;
+SELECT * FROM Former_users;
 
 DELETE FROM BorrowedJournalsCol;
 DELETE FROM BorrowedJournalsRow;
