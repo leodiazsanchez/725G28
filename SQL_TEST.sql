@@ -81,6 +81,18 @@ CREATE TABLE Books(
 	author				VARCHAR(255)			NOT NULL
 );
 
+CREATE TABLE Journals (
+    journal_id			INT IDENTITY			PRIMARY KEY,
+	shelf_id			INT						NOT NULL,
+	FOREIGN KEY(shelf_id) 
+	REFERENCES Shelves(shelf_id),
+	[row]				INT						NOT NULL,
+    title				VARCHAR(255)			NOT NULL,
+    published			DATE					NOT NULL,
+	author				VARCHAR(255)			NOT NULL
+);
+
+
 CREATE TABLE BorrowedBooksCol(
 	order_id			INT IDENTITY			PRIMARY KEY,
 	user_id				INT						NOT NULL,
@@ -136,7 +148,8 @@ CREATE TABLE BorrowedArtifactsCol (
 	REFERENCES Users(user_id)
 	ON DELETE CASCADE,
     borrow_date			DATE					NOT NULL,
-    return_date			DATE
+    return_date			DATE,
+	CHECK (return_date >= borrow_date)
 );
 
 CREATE TABLE BorrowedArtifactsRow (
@@ -175,7 +188,8 @@ CREATE TABLE BorrowedSlidesCol (
 	REFERENCES Users(user_id) 
 	ON DELETE CASCADE,
     borrow_date			DATE					NOT NULL,
-    return_date			DATE
+    return_date			DATE,
+	CHECK (return_date >= borrow_date)
 );
 
 CREATE TABLE BorrowedSlidesRow (
@@ -189,13 +203,6 @@ CREATE TABLE BorrowedSlidesRow (
 	ON DELETE CASCADE
 );
 
-CREATE TABLE Journals (
-    journal_id			INT IDENTITY			PRIMARY KEY,
-    title				VARCHAR(255)			NOT NULL,
-    published			DATE					NOT NULL,
-	author				VARCHAR(255)			NOT NULL
-);
-
 CREATE TABLE BorrowedJournalsCol (
     order_id			INT						PRIMARY KEY,
     user_id				INT,
@@ -203,7 +210,8 @@ CREATE TABLE BorrowedJournalsCol (
 	REFERENCES Users(user_id)
 	ON DELETE CASCADE,
     borrow_date			DATE					NOT NULL,
-    return_date			DATE
+    return_date			DATE,
+	CHECK (return_date >= borrow_date)
 );
 
 CREATE TABLE BorrowedJournalsRow (
@@ -216,6 +224,17 @@ CREATE TABLE BorrowedJournalsRow (
 );
 
 -- Inserting example values into the tables
+/* 	user_id				INT	IDENTITY			PRIMARY KEY,
+	first_name			VARCHAR(20)				NOT NULL,
+	last_name			VARCHAR(30)				NOT NULL,
+	date_of_birth		DATE					NOT NULL,
+	email				VARCHAR(50)				UNIQUE	NOT NULL,
+	phone_number		VARCHAR(10)				UNIQUE	NOT NULL				
+	CHECK (LEN(phone_number) = 10 AND ISNUMERIC(phone_number) = 1),
+	[address]			VARCHAR(100)			NOT NULL,
+	registration_date	DATE					NOT NULL,
+	user_type			VARCHAR(20)				NOT NULL				
+	CHECK (UPPER(user_type) IN ('EMPLOYEE', 'STUDENT')) /*Typ av användare*/*/
 
 INSERT INTO Users (first_name, last_name, date_of_birth, email, phone_number, [address], registration_date, user_type)
 	VALUES
@@ -234,6 +253,10 @@ INSERT INTO Users (first_name, last_name, date_of_birth, email, phone_number, [a
 		('Max', 'Karlsson', '1984-04-21', 'max.karlsson@email.com', '0705557777', 'Gatan 12, Gävle', '2023-12-01', 'Employee'),
 		('Isabella', 'Nilsson', '1999-02-25', 'isabella.nilsson@email.com', '0708886666', 'Vägen 13, Kalmar', '2024-01-01', 'Employee');
 
+/*	shelf_id			INT	IDENTITY			PRIMARY KEY,
+	row_count			INT						NOT NULL,
+	[location]			VARCHAR(30)				NOT NULL*/
+
 INSERT INTO Shelves (row_count,[location])
 	VALUES
 		(20, 'Utställningssal A'),
@@ -241,6 +264,14 @@ INSERT INTO Shelves (row_count,[location])
 		(30, 'Föremålsgalleri'),
 		(10, 'Historiska utställningen'),
 		(10, 'Teknikavdelningen');
+
+/* 	book_id				INT IDENTITY			PRIMARY KEY,
+	shelf_id			INT						NOT NULL,
+	FOREIGN KEY(shelf_id) 
+	REFERENCES Shelves(shelf_id),
+	[row]				INT						NOT NULL,
+	title				VARCHAR(255)			NOT NULL,
+	author				VARCHAR(255)			NOT NULL*/
 
 INSERT INTO Books (shelf_id, row, title, author)
 	VALUES
@@ -252,6 +283,15 @@ INSERT INTO Books (shelf_id, row, title, author)
 		(1, 3, 'One Hundred Years of Solitude', 'Gabriel García Márquez'),
 		(2, 1, 'The Lord of the Rings', 'J.R.R. Tolkien');
 
+/* 	dig_id				INT IDENTITY			PRIMARY KEY,
+	user_id				INT						NOT NULL,
+	FOREIGN KEY(user_id) 
+	REFERENCES Users(user_id) 
+	ON DELETE CASCADE,
+	grid				INT						NOT NULL,
+	depth				INT						NOT NULL,
+	[location]			VARCHAR(255)			NOT NULL */
+
 INSERT INTO Digs (user_id, grid, depth, [location])
 	VALUES
 		(1, 101, 5, 'Ancient Ruins of Pompeii'),
@@ -261,6 +301,18 @@ INSERT INTO Digs (user_id, grid, depth, [location])
 		(5, 505, 6, 'Petra, Jordan'),
 		(6, 606, 9, 'Great Barrier Reef');
 
+/*	artifact_id			INT IDENTITY			PRIMARY KEY,
+	dig_id				INT,
+	FOREIGN KEY(dig_id) 
+	REFERENCES Digs(dig_id) 
+	ON DELETE CASCADE,
+	shelf_id			INT,
+	FOREIGN KEY(shelf_id) 
+	REFERENCES Shelves(shelf_id)
+	ON DELETE CASCADE,
+	[row]				INT						NOT NULL,
+	[description]		VARCHAR(255)			NOT NULL,
+	[date]				DATE					NOT NULL*/
 
 INSERT INTO Artifacts (dig_id,shelf_id,row,description,date)
 	VALUES 
@@ -295,6 +347,8 @@ INSERT INTO Artifacts (dig_id,shelf_id,row,description,date)
 		(3, 3, 4, 'Khmer Empire sculpture', '2025-05-05'),
 		(4, 4, 3, 'Angkor Wat stone carvings', '2025-06-10');
 
+/*	topic_name			VARCHAR(255)			PRIMARY KEY*/
+
 INSERT INTO Topics (topic_name)
 	VALUES
 		('Middle East'),
@@ -306,40 +360,63 @@ INSERT INTO Topics (topic_name)
 		('Underwater Archaeology'),
 		('Prehistoric Art');
 
+/* 	slide_id			INT IDENTITY			PRIMARY KEY,
+	shelf_id			INT,
+	FOREIGN KEY (shelf_id)
+	REFERENCES Shelves(shelf_id),
+	dig_id				INT,
+	FOREIGN KEY(dig_id) 
+	REFERENCES Digs(dig_id) 
+	ON DELETE SET NULL,
+	topic_name			VARCHAR(255),
+	FOREIGN KEY (topic_name)
+	REFERENCES Topics (topic_name),
+	[row]				INT						NOT NULL*/
+
 INSERT INTO Slides (shelf_id, dig_id, topic_name, row)
 	VALUES
-	(1, 1, 'Middle East', 1),
-	(2, 2, 'South America', 3),
-	(3, 3, 'Ancient Civilizations', 4),
-	(4, 4, 'Archaeological Technique', 2),
-	(5, 5, 'Underwater Archaeology', 4),
-	(1, 6, 'Prehistoric Art', 4),
-	(1, 1, 'Middle East', 1),
-	(2, 2, 'South America', 3),
-	(3, 3, 'Ancient Civilizations', 4),
-	(4, 4, 'Archaeological Technique', 2),
-	(5, 5, 'Underwater Archaeology', 4),
-	(1, 6, 'Prehistoric Art', 4),
-	(1, 1, 'Middle East', 1),
-	(2, 2, 'South America', 3),
-	(3, 3, 'Ancient Civilizations', 4),
-	(4, 4, 'Archaeological Technique', 2),
-	(5, 5, 'Underwater Archaeology', 4),
-	(1, 6, 'Prehistoric Art', 4);
+		(1, 1, 'Middle East', 1),
+		(2, 2, 'South America', 3),
+		(3, 3, 'Ancient Civilizations', 4),
+		(4, 4, 'Archaeological Technique', 2),
+		(5, 5, 'Underwater Archaeology', 4),
+		(1, 6, 'Prehistoric Art', 4),
+		(1, 1, 'Middle East', 1),
+		(2, 2, 'South America', 3),
+		(3, 3, 'Ancient Civilizations', 4),
+		(4, 4, 'Archaeological Technique', 2),
+		(5, 5, 'Underwater Archaeology', 4),
+		(1, 6, 'Prehistoric Art', 4),
+		(1, 1, 'Middle East', 1),
+		(2, 2, 'South America', 3),
+		(3, 3, 'Ancient Civilizations', 4),
+		(4, 4, 'Archaeological Technique', 2),
+		(5, 5, 'Underwater Archaeology', 4),
+		(1, 6, 'Prehistoric Art', 4);
 
-INSERT INTO Journals (title,published,author)
+/*	journal_id			INT IDENTITY			PRIMARY KEY,
+	shelf_id			INT						NOT NULL,
+	FOREIGN KEY(shelf_id) 
+	REFERENCES Shelves(shelf_id),
+	[row]				INT						NOT NULL,
+    title				VARCHAR(255)			NOT NULL,
+    published			DATE					NOT NULL,
+	author				VARCHAR(255)			NOT NULL*/
+
+INSERT INTO Journals (shelf_id, [row], title, published, author)
 	VALUES
-		('Middle east findings','2002-05-23','Jenny Jacksson'),
-		('Ancient Empires', '2003-09-23','Brad Bradlyesson'),
-		('Ancient Languages', '2004-01-12','Nicki Nish'),
-		('Ancient Technologies', '2005-12-03','Justin Justinsson'),
-		('Ancient Warfare', '2006-02-12','Orlando Bllom'),
-		('Ancient Trade and Economy', '2007-11-26','Michael Michelsson'),
-		('Ancient Religion and Spirituality', '2008-12-01','Yvette Snow');
+		(1, 1, 'Middle east findings', '2002-05-23', 'Jenny Jacksson'),
+		(2, 2, 'Ancient Empires', '2003-09-23', 'Brad Bradlyesson'),
+		(3, 3, 'Ancient Languages', '2004-01-12', 'Nicki Nish'),
+		(4, 4, 'Ancient Technologies', '2005-12-03', 'Justin Justinsson'),
+		(5, 5, 'Ancient Warfare', '2006-02-12', 'Orlando Bllom'),
+		(4, 6, 'Ancient Trade and Economy', '2007-11-26', 'Michael Michelsson'),
+		(5, 7, 'Ancient Religion and Spirituality', '2008-12-01', 'Yvette Snow');
 
 --VIWES
+-- We have created 4 different views and have numbered them. We have also explained what the use of the different views are.
 
---View to see which slides are currently on loan and to whom
+-- 1. View to see which slides are currently on loan and to whom
 GO
 CREATE VIEW Borrowed_slides AS
 SELECT
@@ -363,7 +440,7 @@ WHERE
     bsc.return_date IS NULL;
 GO
 
---View to see which books are currently on loan and to whom
+--2. View to see which books are currently on loan and to whom
 GO
 CREATE VIEW Borrowed_books AS 
 SELECT
@@ -383,7 +460,7 @@ WHERE
 	bbc.return_date IS NULL;
 GO
 
---View to overview infomation about slides
+--3. View to overview infomation about slides
 GO
 CREATE VIEW Slide_Catalog AS
 SELECT
@@ -401,7 +478,7 @@ INNER JOIN
 	Shelves AS sh ON sh.shelf_id = s.shelf_id;
 GO
 
---View to overview artifacts and their loan status
+--4. View to overview artifacts and their loan status
 GO
 CREATE VIEW Artifact_Report AS 
 SELECT 
@@ -442,8 +519,10 @@ LEFT JOIN
 GO
 
 --PROCEDURES AND TRIGGERS
+--We have created 6 different stored procedures to handle diffrent types of loans.
+--We have also created 1 trigger. Every procedure and trigger is explained in a short comment. The trigger is used to store data about former users.
 
--- Stored procedure to handle book borrowing
+-- 1. Stored procedure to handle book borrowing
 GO
 CREATE PROCEDURE BorrowBook
     @user_id INT,
@@ -480,7 +559,7 @@ BEGIN
 END;
 GO
 
--- Stored procedure to handle returning of book 
+-- 2. Stored procedure to handle returning of book 
 GO
 CREATE PROCEDURE ReturnBook
     @user_id INT,
@@ -524,7 +603,7 @@ DECLARE @order_id INT;
 END;
 GO
 
--- Stored procedure to handle borrowing of artifact
+-- 3. Stored procedure to handle borrowing of artifact
 GO
 CREATE PROCEDURE BorrowArtifact
     @user_id INT,
@@ -564,7 +643,7 @@ BEGIN
 END;
 GO
 
--- Stored procedure to handle return of artifact
+-- 4. Stored procedure to handle return of artifact
 GO
 CREATE PROCEDURE returnArtifact
     @user_id INT,
@@ -608,7 +687,7 @@ BEGIN
 END;
 GO
 
--- Stored procedure to handle borrowing of slide
+-- 5. Stored procedure to handle borrowing of slide
 GO
 CREATE PROCEDURE BorrowSlide
     @user_id INT,
@@ -648,7 +727,7 @@ BEGIN
 END;
 GO
 
--- Stored procedure to handle return of slide
+--6. Stored procedure to handle return of slide
 GO
 CREATE PROCEDURE ReturnSlide
     @user_id INT,
@@ -692,7 +771,7 @@ BEGIN
 END;
 GO
 
--- Trigger that activates when an user is deleted. Saves the user in former_user table
+-- 7. (The only trigger the ones above are procedures)Trigger that activates when an user is deleted. Saves the user in former_user table
 GO
 CREATE TRIGGER [staff_cleaner]
 	ON [users]
@@ -847,13 +926,19 @@ INNER JOIN
 INNER JOIN 
 	BorrowedBooksCol BBC ON BBR.order_id = BBC.order_id
 WHERE 
-	BBC.borrow_date BETWEEN '2023-01-01' AND '2024-12-31';
+	BBC.borrow_date BETWEEN '2023-01-01' AND '2024-12-31'
+ORDER BY
+	BBC.borrow_date DESC;
 
 -- Query to show how many artifacts each user has borrowed
-SELECT U.user_id, CONCAT(u.first_name, ' ', u.last_name) AS name, COUNT(BA.artifact_id) AS total_borrowed
-FROM BorrowedArtifactsRow BA
-INNER JOIN BorrowedArtifactsCol BAC ON BA.order_id = BAC.order_id
-INNER JOIN Users U ON BAC.user_id = U.user_id
+SELECT 
+	U.user_id, CONCAT(u.first_name, ' ', u.last_name) AS name, COUNT(BA.artifact_id) AS total_borrowed
+FROM 
+	BorrowedArtifactsRow BA
+INNER JOIN 
+	BorrowedArtifactsCol BAC ON BA.order_id = BAC.order_id
+INNER JOIN 
+	Users U ON BAC.user_id = U.user_id
 GROUP BY 
 	U.user_id, CONCAT(u.first_name, ' ', u.last_name)
 ORDER BY 
@@ -867,11 +952,12 @@ SELECT
     COUNT(BorrowedBooksCol.order_id) AS num_borrowed_books
 FROM
     Users
-LEFT JOIN BorrowedBooksCol ON Users.user_id = BorrowedBooksCol.user_id
+LEFT JOIN 
+	BorrowedBooksCol ON Users.user_id = BorrowedBooksCol.user_id
 GROUP BY
     Users.user_id, Users.first_name, Users.last_name
 HAVING
-    COUNT(BorrowedBooksCol.order_id) > 1; -- Change 5 to your desired threshold
+    COUNT(BorrowedBooksCol.order_id) > 1; -- desired threshold
 
 -- Delete and verifying that trigger works as intended
 DELETE FROM Users 
@@ -879,6 +965,8 @@ WHERE user_id = 1;
 
 SELECT * FROM Users;
 SELECT * FROM Former_users;
+
+--Deleting data from all the tables
 
 DELETE FROM BorrowedJournalsCol;
 DELETE FROM BorrowedJournalsRow;
@@ -897,6 +985,8 @@ DELETE FROM Books;
 DELETE FROM Shelves;
 DELETE FROM Former_users;
 DELETE FROM Users;
+
+--Dropping the tables from the DB
 
 DROP TABLE BorrowedJournalsRow;
 DROP TABLE BorrowedJournalsCol;
