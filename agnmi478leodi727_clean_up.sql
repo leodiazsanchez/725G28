@@ -1,3 +1,5 @@
+--Deleting data from all the tables
+
 DELETE FROM BorrowedJournalsCol;
 DELETE FROM BorrowedJournalsRow;
 DELETE FROM Journals;
@@ -15,6 +17,8 @@ DELETE FROM Books;
 DELETE FROM Shelves;
 DELETE FROM Former_users;
 DELETE FROM Users;
+
+--Dropping the tables from the DB
 
 DROP TABLE BorrowedJournalsRow;
 DROP TABLE BorrowedJournalsCol;
